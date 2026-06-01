@@ -2,6 +2,11 @@
   "name": "r-logs-desktop",
   "version": "0.1.0",
   "description": "Desktop Linux client for the R logs processor",
+  "author": {
+    "name": "R Logs Team",
+    "email": "dev@example.com"
+  },
+  "homepage": "https://example.com/r-logs",
   "main": "main.js",
   "private": true,
   "scripts": {
@@ -16,7 +21,8 @@
         "AppImage",
         "deb"
       ],
-      "category": "Development"
+      "category": "Development",
+      "maintainer": "R Logs Team <dev@example.com>"
     },
     "files": [
       "main.js",
@@ -26,6 +32,10 @@
       {
         "from": "../shiny",
         "to": "shiny"
+      },
+      {
+        "from": "../../../r-lib",
+        "to": "r-lib"
       }
     ]
   },

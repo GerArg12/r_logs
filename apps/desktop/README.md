@@ -7,7 +7,8 @@ Aplicacion Linux de escritorio compuesta por:
 
 ## Requisitos
 
-- R con paquetes `shiny`, `jsonlite` y `httr`.
+- R con paquetes `shiny` y `jsonlite`.
+- Binario `curl` disponible en el sistema para enviar logs desde la UI.
 - Node.js y npm.
 - Backend disponible en `BACKEND_URL`.
 

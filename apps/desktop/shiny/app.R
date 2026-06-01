@@ -88,11 +88,22 @@ server <- function(input, output, session) {
       return()
     }
 
+    payload_file <- tempfile(fileext = ".json")
+    writeLines(toJSON(parsed_payload, auto_unbox = TRUE), payload_file)
+    on.exit(unlink(payload_file), add = TRUE)
+
     response <- tryCatch(
-      httr::POST(
-        paste0(backend_url, "/log"),
-        body = parsed_payload,
-        encode = "json"
+      system2(
+        "curl",
+        args = c(
+          "-sS",
+          "-X", "POST",
+          paste0(backend_url, "/log"),
+          "-H", "Content-Type:application/json",
+          "--data-binary", paste0("@", payload_file)
+        ),
+        stdout = TRUE,
+        stderr = TRUE
       ),
       error = function(error) error
     )
@@ -102,8 +113,7 @@ server <- function(input, output, session) {
       return()
     }
 
-    content <- httr::content(response, as = "text", encoding = "UTF-8")
-    response_text(content)
+    response_text(paste(response, collapse = "\n"))
     fetch_logs()
   })
 

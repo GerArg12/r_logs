@@ -7,6 +7,7 @@ renv/staging/
 node_modules/
 dist/
 release/
+r-lib/
 
 apps/backend/logs/*.json
 apps/backend/output/*.csv

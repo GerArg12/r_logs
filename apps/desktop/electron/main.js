@@ -33,6 +33,10 @@ function startShiny() {
   const shinyPath = app.isPackaged
     ? path.join(process.resourcesPath, 'shiny')
     : path.resolve(__dirname, '../shiny');
+  const packagedRLibPath = path.join(process.resourcesPath, 'r-lib');
+  const devRLibPath = path.resolve(__dirname, '../../../r-lib');
+  const rLibPath = process.env.R_LIBS_USER
+    || (app.isPackaged ? packagedRLibPath : devRLibPath);
 
   shinyProcess = spawn('R', [
     '-e',
@@ -40,6 +44,7 @@ function startShiny() {
   ], {
     env: {
       ...process.env,
+      R_LIBS_USER: rLibPath,
       SHINY_PORT: shinyPort
     },
     stdio: 'inherit'

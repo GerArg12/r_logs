@@ -7,6 +7,9 @@ Description: Plumber API for receiving, processing and exporting logs.
 License: MIT
 Encoding: UTF-8
 Imports:
+    dplyr,
     jsonlite,
     plumber,
-    tidyverse
+    purrr,
+    readr,
+    tibble

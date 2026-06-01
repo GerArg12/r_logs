@@ -1,5 +1,8 @@
 library(jsonlite)
-library(tidyverse)
+library(dplyr)
+library(purrr)
+library(readr)
+library(tibble)
 
 read_log_file <- function(file_path) {
   fromJSON(file_path, simplifyVector = TRUE) |>

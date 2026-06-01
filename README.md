@@ -29,13 +29,34 @@ La base del proyecto incluye:
 Requisitos:
 
 - R 4.x
-- Paquetes: `plumber`, `jsonlite`, `tidyverse`
+- Paquetes R principales: `plumber`, `jsonlite`, `dplyr`, `purrr`, `readr`, `tibble`
+- En Linux, `plumber` requiere librerias del sistema como `libsodium-dev` y `libcurl4-openssl-dev`
+
+Instalar dependencias R en la libreria local del repo:
+
+```bash
+mkdir -p r-lib
+Rscript -e ".libPaths(normalizePath('r-lib')); install.packages(c('jsonlite','dplyr','purrr','readr','tibble','shiny'), repos='https://cloud.r-project.org')"
+```
+
+Para instalar `plumber` localmente en Linux:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y libsodium-dev libcurl4-openssl-dev
+Rscript -e ".libPaths(normalizePath('r-lib')); install.packages(c('curl','sodium','webutils','plumber'), repos='https://cloud.r-project.org')"
+```
+
+Probar solo el procesamiento:
+
+```bash
+./scripts/test-backend-processing.sh
+```
 
 Ejecutar la API:
 
 ```bash
-cd apps/backend
-R -e "pr <- plumber::plumb('plumber.R'); pr$run(host='0.0.0.0', port=8000)"
+./scripts/run-backend-local.sh
 ```
 
 Enviar un log:
