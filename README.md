@@ -24,6 +24,12 @@ La base del proyecto incluye:
 └── docs/                     # Guias del laboratorio
 ```
 
+## Onboarding De Desarrolladores
+
+La guia para que otros devs clonen, configuren deploy keys y ejecuten el proyecto esta en:
+
+- [docs/onboarding-devs.md](docs/onboarding-devs.md)
+
 ## Backend local con R
 
 Requisitos:
