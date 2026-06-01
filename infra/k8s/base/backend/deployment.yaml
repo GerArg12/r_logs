@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: r-log-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: r-log-backend
+  template:
+    metadata:
+      labels:
+        app: r-log-backend
+    spec:
+      containers:
+        - name: backend
+          image: r-log-backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: BACKEND_PORT
+              value: "8000"
+            - name: LOG_STORAGE_DIR
+              value: /data/logs
+            - name: LOG_OUTPUT_DIR
+              value: /data/output
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          volumeMounts:
+            - name: log-data
+              mountPath: /data
+      volumes:
+        - name: log-data
+          emptyDir: {}

@@ -1,0 +1,12 @@
+Package: rlogbackend
+Title: R Logs Backend
+Version: 0.1.0
+Authors@R:
+    person("R Logs", "Team", role = c("aut", "cre"), email = "dev@example.com")
+Description: Plumber API for receiving, processing and exporting logs.
+License: MIT
+Encoding: UTF-8
+Imports:
+    jsonlite,
+    plumber,
+    tidyverse

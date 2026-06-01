@@ -1,0 +1,36 @@
+{
+  "name": "r-logs-desktop",
+  "version": "0.1.0",
+  "description": "Desktop Linux client for the R logs processor",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "dev": "electron .",
+    "dist:linux": "electron-builder --linux AppImage deb"
+  },
+  "build": {
+    "appId": "local.rlogs.desktop",
+    "productName": "R Logs Desktop",
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Development"
+    },
+    "files": [
+      "main.js",
+      "preload.js"
+    ],
+    "extraResources": [
+      {
+        "from": "../shiny",
+        "to": "shiny"
+      }
+    ]
+  },
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3"
+  }
+}

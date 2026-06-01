@@ -1,0 +1,16 @@
+.Rhistory
+.RData
+.Rproj.user/
+renv/library/
+renv/staging/
+
+node_modules/
+dist/
+release/
+
+apps/backend/logs/*.json
+apps/backend/output/*.csv
+apps/backend/output/*.json
+
+.DS_Store
+*.log
