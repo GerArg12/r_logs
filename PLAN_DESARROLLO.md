@@ -1,15 +1,15 @@
-# Plan de Desarrollo
+# Plan De Desarrollo Para 4 Desarrolladores
 
-## Objetivo
+## Resumen
 
-Desarrollar una aplicacion de escritorio para procesamiento y analisis de logs, construida con R Shiny y empaquetada con Electron, conectada a un backend R/Plumber desplegable sobre Docker y Kubernetes.
+El proyecto se dividira entre 3 desarrolladores full-stack para frontend Shiny y backend R/Plumber, mas un cuarto desarrollador dedicado a infraestructura, Kubernetes y empaquetado Electron.
 
-La aplicacion debe permitir capturar logs desde dos fuentes principales:
+La version inicial procesara logs desde dos fuentes:
 
-- Archivos directos: carga de archivos `.log` desde la interfaz.
-- Escucha en directo: monitorizacion de una carpeta local o de servidor donde se escriban logs continuamente.
+- Archivos `.log` cargados desde la aplicacion.
+- Escucha local de una carpeta seleccionada desde la app desktop.
 
-El flujo debe permitir previsualizar los logs detectados, procesarlos y mostrar tres categorias de analisis:
+El parser inicial soportara access logs comunes Apache/Nginx. Las metricas principales seran:
 
 - IP con mas peticiones.
 - Cantidad de peticiones en el tiempo.
@@ -30,216 +30,193 @@ R Shiny Frontend
 Backend R/Plumber
   |
   v
-Procesamiento R + Tidyverse
+Procesamiento R
   |
   v
 Resultados CSV/JSON
 ```
 
-## Componentes
-
-### Frontend
-
-Ubicacion: `apps/desktop`
-
-Responsabilidades:
-
-- Interfaz de carga de archivos `.log`.
-- Interfaz para configurar carpeta de escucha local.
-- Previsualizacion de logs crudos.
-- Visualizacion de resultados procesados.
-- Empaquetado de escritorio con Electron para Linux.
-
-### Backend
-
-Ubicacion: `apps/backend`
-
-Responsabilidades:
-
-- API REST con Plumber.
-- Recepcion de logs cargados desde Shiny.
-- Lectura y normalizacion de logs.
-- Procesamiento de metricas.
-- Exposicion de resultados en JSON y CSV.
-- Despliegue en Kubernetes usando la infraestructura existente.
-
-### Infraestructura
-
-Ubicacion: `infra`
-
-Responsabilidades:
-
-- Imagen Docker del backend.
-- Manifiestos Kubernetes para desarrollo y produccion.
-- Despliegue local con Minikube.
-- Scripts de automatizacion.
-
 ## Flujo Funcional
 
 1. El usuario abre la aplicacion de escritorio.
-2. El frontend permite seleccionar una fuente de logs:
-   - Cargar archivo `.log`.
-   - Elegir carpeta local para escucha en directo.
-3. La aplicacion muestra una previsualizacion de los logs detectados.
+2. El usuario selecciona una fuente de logs:
+   - Archivo `.log`.
+   - Carpeta local para escucha.
+3. La app muestra una previsualizacion de los logs detectados.
 4. El usuario ejecuta el procesamiento.
-5. El backend transforma los logs a una estructura tabular.
-6. Se generan metricas principales.
-7. El frontend muestra:
-   - Tabla de previsualizacion.
+5. El backend normaliza los logs.
+6. El backend calcula metricas.
+7. Shiny muestra:
+   - Previsualizacion tabular.
    - Ranking de IPs.
    - Grafico temporal de peticiones.
-   - Ranking de recursos consultados.
-8. Los resultados quedan disponibles como JSON y CSV.
+   - Ranking de recursos.
+8. El backend exporta resultados en JSON y CSV.
 
-## Formato Base de Log
+## Formato Base De Log
 
-El parser inicial debe soportar logs HTTP comunes, por ejemplo:
+El parser inicial debe soportar logs HTTP comunes de Apache/Nginx:
 
 ```text
 192.168.1.10 - - [29/May/2026:10:00:00 +0000] "GET /login HTTP/1.1" 200 532
 ```
 
-Campos minimos esperados:
+Modelo normalizado minimo:
 
-- `ip`
-- `timestamp`
-- `metodo`
-- `recurso`
-- `status`
-- `bytes`
-- `raw`
+```text
+ip
+timestamp
+metodo
+recurso
+status
+bytes
+fuente
+archivo
+raw
+```
 
-## Equipo
+## Reparto De Trabajo
 
-### Desarrollador 1: Backend y Procesamiento
+### Dev 1: Ingesta Y Previsualizacion
+
+Responsabilidades backend:
+
+- Implementar parser Apache/Nginx comun.
+- Normalizar campos: `ip`, `timestamp`, `metodo`, `recurso`, `status`, `bytes`, `raw`, `fuente`.
+- Crear `POST /logs/upload` para recibir contenido de archivos `.log`.
+- Crear `GET /logs/preview` para devolver muestra parseada y errores.
+- Manejar lineas invalidas sin romper el procesamiento.
+
+Responsabilidades frontend:
+
+- Crear vista de carga de archivo `.log`.
+- Mostrar previsualizacion tabular.
+- Mostrar resumen de lineas validas, invalidas y total procesado.
+- Mostrar errores de parsing de forma clara.
+
+Entregable:
+
+- Flujo completo de carga de archivo `.log` y previsualizacion.
+
+### Dev 2: Escucha Local Y Sincronizacion
+
+Responsabilidades backend:
+
+- Crear `POST /logs/batch` para recibir lotes detectados desde carpeta local.
+- Evitar duplicados por archivo, linea o hash simple.
+- Persistir logs recibidos para procesamiento posterior.
+- Devolver conteo de registros aceptados, duplicados y rechazados.
+
+Responsabilidades frontend:
+
+- Crear vista para configurar carpeta local.
+- Implementar polling de archivos `.log` en esa carpeta.
+- Detectar nuevos archivos o nuevas lineas.
+- Enviar lotes al backend.
+- Mostrar estado de escucha: activa, detenida, error, ultima lectura.
+
+Entregable:
+
+- Flujo completo de escucha local desde app desktop hacia backend.
+
+### Dev 3: Analitica Y Visualizacion
+
+Responsabilidades backend:
+
+- Crear `POST /logs/process`.
+- Crear `GET /analytics/top-ips`.
+- Crear `GET /analytics/requests-over-time`.
+- Crear `GET /analytics/top-resources`.
+- Generar salidas CSV/JSON en `apps/backend/output`.
+- Mantener compatibilidad temporal con `/health`, `/log` y `/logs`.
+
+Responsabilidades frontend:
+
+- Crear vista de resultados.
+- Mostrar ranking de IPs con mas peticiones.
+- Mostrar grafico temporal de cantidad de peticiones.
+- Mostrar ranking de recursos mas consultados.
+- Agregar boton de procesamiento y refresco de metricas.
+- Manejar estados sin datos, cargando, procesado y error.
+
+Entregable:
+
+- Flujo completo de procesamiento y visualizacion de las tres metricas.
+
+### Dev 4: Infraestructura, Electron Y Empaquetado
 
 Responsabilidades:
 
-- Disenar el parser de logs `.log`.
-- Crear endpoints REST para carga, procesamiento y consulta.
-- Implementar analisis de IPs, tiempo y recursos.
-- Exportar resultados a CSV y JSON.
-- Agregar pruebas unitarias del parser y procesamiento.
-
-Tareas principales:
-
-- Crear endpoint `POST /logs/upload`.
-- Crear endpoint `POST /logs/process`.
-- Crear endpoint `GET /logs/preview`.
-- Crear endpoint `GET /analytics/top-ips`.
-- Crear endpoint `GET /analytics/requests-over-time`.
-- Crear endpoint `GET /analytics/top-resources`.
-- Implementar parser para formato Apache/Nginx comun.
-- Manejar errores por lineas invalidas o formatos desconocidos.
-
-Entregables:
-
-- API funcional.
-- Parser probado.
-- Resultados JSON/CSV.
-- Documentacion de endpoints.
-
-### Desarrollador 2: Frontend Shiny y UX
-
-Responsabilidades:
-
-- Construir la interfaz Shiny.
-- Implementar carga de archivos `.log`.
-- Implementar previsualizacion.
-- Implementar vistas de analitica.
-- Integrar llamadas al backend.
-
-Tareas principales:
-
-- Crear vista de carga de archivo.
-- Crear vista de seleccion/configuracion de carpeta.
-- Crear tabla de previsualizacion.
-- Crear grafico temporal.
-- Crear ranking de IPs.
-- Crear ranking de recursos.
-- Manejar estados de carga, error y exito.
-- Ajustar la UI para escritorio dentro de Electron.
-
-Entregables:
-
-- UI Shiny navegable.
-- Integracion con backend.
-- Graficos y tablas funcionales.
-- Flujo completo de carga, previsualizacion y analisis.
-
-### Desarrollador 3: Electron, Docker y Kubernetes
-
-Responsabilidades:
-
-- Mantener empaquetado Electron.
-- Automatizar ejecucion local.
+- Mantener AppImage y `.deb`.
+- Asegurar que Electron inicie Shiny con dependencias R incluidas.
+- Configurar `BACKEND_URL`, `R_LIBS_USER` y variables necesarias.
 - Mantener Dockerfile del backend.
-- Mantener manifiestos Kubernetes.
-- Documentar comandos de ejecucion.
+- Validar despliegue con Minikube.
+- Mantener overlays Kubernetes `dev` y `prod`.
+- Crear scripts de build, run, test y deploy.
+- Documentar comandos de ejecucion local, Electron y Kubernetes.
 
-Tareas principales:
+Entregable:
 
-- Ajustar Electron para iniciar Shiny correctamente.
-- Incluir dependencias R necesarias en el paquete.
-- Crear scripts de build y ejecucion.
-- Mejorar Dockerfile del backend.
-- Validar despliegue en Minikube.
-- Crear overlay de desarrollo y produccion.
-- Documentar flujo de instalacion y despliegue.
+- App desktop empaquetada y backend desplegable en Kubernetes.
 
-Entregables:
+## Endpoints Propuestos
 
-- AppImage y `.deb` generables.
-- Backend desplegable en Minikube.
-- Scripts de automatizacion.
-- Guia de levantamiento local y Kubernetes.
+```text
+GET  /health
+POST /logs/upload
+POST /logs/batch
+GET  /logs/preview
+POST /logs/process
+GET  /analytics/top-ips
+GET  /analytics/requests-over-time
+GET  /analytics/top-resources
+```
+
+Endpoints actuales a mantener temporalmente:
+
+```text
+POST /log
+GET  /logs
+```
 
 ## Fases
 
-### Fase 1: Base Tecnica
-
-Duracion estimada: 2 a 3 dias.
+### Fase 1: Contratos Base
 
 Objetivos:
 
-- Consolidar dependencias R.
-- Definir estructura final de endpoints.
-- Validar ejecucion local de backend y frontend.
-- Asegurar empaquetado Electron basico.
+- Definir parser, esquema normalizado y endpoints.
+- Asegurar que backend y frontend puedan intercambiar datos.
+- Mantener flujo actual funcionando mientras se agregan nuevos endpoints.
 
 Criterios de aceptacion:
 
-- Backend levanta en `http://127.0.0.1:8000`.
-- Shiny levanta en `http://127.0.0.1:3838`.
-- Electron abre la app Shiny.
-- Docker build del backend funciona.
+- Backend responde `/health`.
+- Existe parser base para Apache/Nginx.
+- Existe respuesta estructurada para preview y errores.
 
-### Fase 2: Ingestion de Logs
-
-Duracion estimada: 3 a 4 dias.
+### Fase 2: Ingesta
 
 Objetivos:
 
-- Soportar subida de archivos `.log`.
-- Soportar lectura de carpeta local.
-- Crear previsualizacion de logs.
-- Normalizar campos principales.
+- Implementar subida de `.log`.
+- Implementar escucha local por polling desde la app desktop.
+- Unificar ambas fuentes en el mismo modelo normalizado.
 
 Criterios de aceptacion:
 
 - El usuario puede cargar un archivo `.log`.
-- El usuario puede seleccionar/configurar una carpeta de escucha.
-- La aplicacion muestra las primeras lineas parseadas.
-- Los errores de parsing son visibles sin romper el flujo.
+- El usuario puede seleccionar una carpeta local.
+- Nuevos logs detectados se envian al backend.
+- Las lineas invalidas no detienen el flujo.
 
 ### Fase 3: Analitica
-
-Duracion estimada: 3 a 4 dias.
 
 Objetivos:
 
 - Calcular IPs con mas peticiones.
-- Calcular cantidad de peticiones por intervalo de tiempo.
+- Calcular peticiones por intervalo de tiempo.
 - Calcular recursos mas consultados.
 - Exponer resultados por API.
 
@@ -247,125 +224,65 @@ Criterios de aceptacion:
 
 - Hay endpoint para cada analisis.
 - La UI consume y muestra cada analisis.
-- Los resultados pueden exportarse a CSV y JSON.
-- Las metricas se actualizan al procesar nuevos logs.
+- CSV/JSON se regeneran despues de procesar.
 
-### Fase 4: Integracion Desktop
-
-Duracion estimada: 2 a 3 dias.
+### Fase 4: Desktop
 
 Objetivos:
 
-- Empaquetar la aplicacion con Electron.
+- Empaquetar Electron con la UI corregida y dependencias R.
+- Validar AppImage y `.deb`.
 - Garantizar que Shiny arranque dentro del paquete.
-- Validar conexion con backend local o remoto.
-- Documentar instalacion en Linux.
 
 Criterios de aceptacion:
 
-- Se genera AppImage.
-- Se genera paquete `.deb`.
-- La app abre en Linux con doble clic o desde terminal.
-- La app puede enviar logs al backend y mostrar resultados.
+- AppImage abre sin configurar `R_LIBS_USER` manualmente.
+- `.deb` instala la aplicacion.
+- La app puede enviar datos al backend y mostrar resultados.
 
-### Fase 5: Kubernetes y Produccion
-
-Duracion estimada: 3 a 4 dias.
+### Fase 5: Kubernetes
 
 Objetivos:
 
-- Desplegar backend en Minikube.
+- Validar backend en Minikube.
 - Validar servicio NodePort en desarrollo.
 - Preparar overlay de produccion.
-- Documentar build, deploy y pruebas.
 
 Criterios de aceptacion:
 
 - `kubectl apply -k infra/k8s/overlays/dev` despliega el backend.
 - El backend responde desde Minikube.
-- La app Electron puede apuntar al backend desplegado.
-- La documentacion incluye comandos reproducibles.
+- La app puede apuntar al backend desplegado mediante `BACKEND_URL`.
 
-## Endpoints Propuestos
+## Pruebas Y Aceptacion
 
-### Salud
-
-```text
-GET /health
-```
-
-### Carga de Logs
-
-```text
-POST /logs/upload
-```
-
-Recibe archivo o contenido de log enviado desde Shiny.
-
-### Previsualizacion
-
-```text
-GET /logs/preview
-```
-
-Devuelve una muestra de logs parseados y errores encontrados.
-
-### Procesamiento
-
-```text
-POST /logs/process
-```
-
-Ejecuta limpieza, transformacion y generacion de resultados.
-
-### Analitica
-
-```text
-GET /analytics/top-ips
-GET /analytics/requests-over-time
-GET /analytics/top-resources
-```
-
-## Modelo de Datos Inicial
-
-```text
-logs_normalizados
-├── ip
-├── timestamp
-├── metodo
-├── recurso
-├── status
-├── bytes
-├── fuente
-├── archivo
-└── raw
-```
+- Archivo `.log` valido se carga, parsea y previsualiza.
+- Lineas invalidas aparecen como errores sin detener el flujo.
+- Carpeta local detecta nuevos logs por polling.
+- El backend evita duplicados basicos en lotes.
+- Las tres metricas se calculan correctamente.
+- Shiny muestra previsualizacion, estados y graficos.
+- Electron abre la app sin configuracion manual de librerias R.
+- Backend funciona localmente y en Minikube.
 
 ## Riesgos Tecnicos
 
-- Variacion en formatos de logs Apache, Nginx o personalizados.
-- Acceso a carpetas locales desde Electron/Shiny.
-- Diferencia entre ejecucion local y ejecucion empaquetada.
-- Persistencia de archivos en Kubernetes.
-- Dependencias R nativas al empaquetar con Electron.
+- Variacion de formatos Apache/Nginx entre servidores.
+- Permisos de acceso a carpetas locales desde la app empaquetada.
+- Diferencias entre ejecucion Shiny local y Shiny dentro de Electron.
+- Peso del paquete si se incluyen dependencias R en el AppImage.
+- Persistencia limitada en Kubernetes si se mantiene `emptyDir`.
 
-## Decisiones Iniciales
+## Supuestos
 
-- El backend sera responsable del parsing y procesamiento.
-- El frontend sera responsable de seleccionar fuentes, previsualizar y mostrar resultados.
-- La escucha en directo se implementara primero como polling sobre una carpeta configurada.
-- El almacenamiento inicial sera en archivos locales dentro del contenedor o entorno de desarrollo.
-- En produccion se evaluara reemplazar `emptyDir` por `PersistentVolumeClaim`.
+- Los tres primeros desarrolladores pueden trabajar tanto frontend como backend.
+- Infraestructura y empaquetado quedan para el cuarto desarrollador.
+- La escucha en directo v1 sera local desde la app desktop.
+- El parser v1 se limita a Apache/Nginx comun.
+- La escucha usara polling; `inotify` queda como mejora posterior.
+- La persistencia Kubernetes inicial puede seguir con almacenamiento efimero; PVC queda como mejora posterior.
 
-## Prioridades
-
-1. Parser y previsualizacion de `.log`.
-2. Analitica basica.
-3. Integracion Shiny con backend.
-4. Empaquetado Electron estable.
-5. Despliegue Kubernetes.
-
-## Definition of Done
+## Definition Of Done
 
 Una funcionalidad se considera terminada cuando:
 
@@ -375,4 +292,3 @@ Una funcionalidad se considera terminada cuando:
 - Tiene documentacion minima.
 - No rompe el empaquetado Electron.
 - No rompe el despliegue Kubernetes de desarrollo.
-
