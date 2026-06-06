@@ -19,6 +19,15 @@ function(req) {
   parse_log_content(content)
 }
 
+#* Internal helper to append and process logs
+append_and_process <- function(valid_logs, type = "upload") {
+  filename <- if(type == "streaming") "logs_streaming" else "logs_upload"
+  existing <- get_processed_data(type)
+  combined <- if(is.null(existing)) valid_logs else bind_rows(existing, valid_logs)
+  write_processed_outputs(combined, filename)
+  return(nrow(valid_logs))
+}
+
 #* Upload and process log file
 #* @post /logs/upload
 function(req, res) {
@@ -30,14 +39,12 @@ function(req, res) {
     return(list(status = "error", message = "No valid logs found in content"))
   }
   
-  # For Phase 3: We need to ensure this data is "processed" so analytics work.
-  # We simulate a store and global process update for this demo.
-  write_processed_outputs(parsed_results$valid)
+  count <- append_and_process(parsed_results$valid, "upload")
   
   res$status <- 201
   list(
     status = "ok",
-    records_parsed = nrow(parsed_results$valid),
+    records_parsed = count,
     errors = nrow(parsed_results$invalid)
   )
 }
@@ -54,15 +61,12 @@ function(req, res) {
   all_content <- paste(body$logs, collapse = "\n")
   parsed_results <- parse_log_content(all_content)
   
-  # Append to existing processed data for Phase 3 demo
-  existing <- get_processed_data()
-  combined <- if(is.null(existing)) parsed_results$valid else bind_rows(existing, parsed_results$valid)
-  write_processed_outputs(combined)
+  count <- append_and_process(parsed_results$valid, "streaming")
   
   res$status <- 201
   list(
     status = "ok",
-    records_parsed = nrow(parsed_results$valid),
+    records_parsed = count,
     errors = nrow(parsed_results$invalid),
     source = body$source
   )
@@ -70,20 +74,20 @@ function(req, res) {
 
 #* Analytics: Top IPs
 #* @get /analytics/top-ips
-function() {
-  get_top_ips()
+function(type = "upload") {
+  get_top_ips(source_type = type)
 }
 
 #* Analytics: Requests over time
 #* @get /analytics/requests-over-time
-function() {
-  get_requests_over_time()
+function(type = "upload") {
+  get_requests_over_time(source_type = type)
 }
 
 #* Analytics: Top Resources
 #* @get /analytics/top-resources
-function() {
-  get_top_resources()
+function(type = "upload") {
+  get_top_resources(source_type = type)
 }
 
 #* Receive one application log and process the dataset

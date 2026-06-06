@@ -9,16 +9,21 @@ get_output_dir <- function() {
   path
 }
 
-get_processed_data <- function() {
-  json_path <- file.path(get_output_dir(), "logs_procesados.json")
+get_processed_data <- function(source_type = "upload") {
+  filename <- if(source_type == "streaming") "logs_streaming.json" else "logs_upload.json"
+  json_path <- file.path(get_output_dir(), filename)
   if (!file.exists(json_path)) return(NULL)
   
-  fromJSON(json_path) |> as_tibble()
+  df <- fromJSON(json_path) |> as_tibble()
+  if (nrow(df) > 0 && "timestamp" %in% names(df)) {
+    df$timestamp <- as.POSIXct(df$timestamp, tz = "UTC")
+  }
+  df
 }
 
 # 1. IP con más peticiones
-get_top_ips <- function(n = 10) {
-  df <- get_processed_data()
+get_top_ips <- function(n = 10, source_type = "upload") {
+  df <- get_processed_data(source_type)
   if (is.null(df) || nrow(df) == 0) return(tibble(ip = character(), count = integer()))
   
   df |>
@@ -27,8 +32,8 @@ get_top_ips <- function(n = 10) {
 }
 
 # 2. Cantidad de peticiones en el tiempo (por hora)
-get_requests_over_time <- function() {
-  df <- get_processed_data()
+get_requests_over_time <- function(source_type = "upload") {
+  df <- get_processed_data(source_type)
   if (is.null(df) || nrow(df) == 0) return(tibble(timestamp = POSIXct(), count = integer()))
   
   df |>
@@ -38,8 +43,8 @@ get_requests_over_time <- function() {
 }
 
 # 3. Recursos más consultados
-get_top_resources <- function(n = 10) {
-  df <- get_processed_data()
+get_top_resources <- function(n = 10, source_type = "upload") {
+  df <- get_processed_data(source_type)
   if (is.null(df) || nrow(df) == 0) return(tibble(recurso = character(), count = integer()))
   
   df |>

@@ -27,38 +27,23 @@ ui <- fluidPage(
             12,
             div(
               class = "panel",
-              actionButton("refresh_analytics", "Refrescar Métricas", class = "btn-primary"),
+              actionButton("refresh_analytics", "Refrescar Todas las Métricas", class = "btn-primary"),
               tags$hr()
             )
           )
         ),
+        h3("📁 Ingesta de Archivos (Estático)", style = "margin-left: 15px;"),
         fluidRow(
-          column(
-            6,
-            div(
-              class = "panel",
-              h4("Top 10 IPs"),
-              plotOutput("plot_ips", height = "300px")
-            )
-          ),
-          column(
-            6,
-            div(
-              class = "panel",
-              h4("Top 10 Recursos"),
-              plotOutput("plot_resources", height = "300px")
-            )
-          )
+          column(4, div(class = "panel", h4("Top IPs"), plotOutput("plot_ips_upload", height = "250px"))),
+          column(4, div(class = "panel", h4("Top Recursos"), plotOutput("plot_resources_upload", height = "250px"))),
+          column(4, div(class = "panel", h4("Tiempo"), plotOutput("plot_time_upload", height = "250px")))
         ),
+        tags$hr(),
+        h3("⚡ Monitoreo en Tiempo Real (Streaming)", style = "margin-left: 15px;"),
         fluidRow(
-          column(
-            12,
-            div(
-              class = "panel",
-              h4("Peticiones en el Tiempo"),
-              plotOutput("plot_time", height = "300px")
-            )
-          )
+          column(4, div(class = "panel", h4("Top IPs"), plotOutput("plot_ips_streaming", height = "250px"))),
+          column(4, div(class = "panel", h4("Top Recursos"), plotOutput("plot_resources_streaming", height = "250px"))),
+          column(4, div(class = "panel", h4("Tiempo"), plotOutput("plot_time_streaming", height = "250px")))
         )
       ),
       tabPanel(
@@ -169,11 +154,14 @@ server <- function(input, output, session) {
   output$preview_summary <- renderUI({
     req(preview_data())
     data <- preview_data()
+    valid_count <- if(is.null(data$valid)) 0 else nrow(data$valid)
+    invalid_count <- if(is.null(data$invalid)) 0 else nrow(data$invalid)
+    
     tagList(
       p(strong("Total líneas: "), data$total),
-      p(strong("Válidas: "), nrow(data$valid), style = "color: #28a745;"),
-      p(strong("Inválidas: "), nrow(data$invalid), style = "color: #dc3545;"),
-      if(nrow(data$invalid) > 0) {
+      p(strong("Válidas: "), valid_count, style = "color: #28a745;"),
+      p(strong("Inválidas: "), invalid_count, style = "color: #dc3545;"),
+      if(invalid_count > 0) {
         div(class = "error-text", "Se detectaron formatos no reconocidos.")
       }
     )
@@ -196,6 +184,7 @@ server <- function(input, output, session) {
     if (!is.null(res)) {
       showNotification("Archivo procesado con éxito", type = "message")
       fetch_logs()
+      update_analytics("upload")
     }
   })
 
@@ -301,6 +290,7 @@ server <- function(input, output, session) {
       monitor_history(paste0(activity, monitor_history()))
       last_file_sizes(new_sizes)
       fetch_logs()
+      update_analytics("streaming")
     } else {
       last_file_sizes(new_sizes) # Actualizar tamaños incluso si no hay cambios (primera vez)
     }
@@ -316,57 +306,69 @@ server <- function(input, output, session) {
     monitor_history()
   })
 
-  # --- Lógica de Analítica (Fase 3) ---
-  analytics_data <- reactiveValues(ips = NULL, time = NULL, resources = NULL)
+  # --- Lógica de Analítica (Fase 3 - Separada) ---
+  analytics_data <- reactiveValues(
+    upload = list(ips = NULL, time = NULL, resources = NULL),
+    streaming = list(ips = NULL, time = NULL, resources = NULL)
+  )
 
-  update_analytics <- function() {
-    # Top IPs
-    res_ips <- tryCatch({ fromJSON(paste0(backend_url, "/analytics/top-ips")) }, error = function(e) NULL)
-    # Time
-    res_time <- tryCatch({ fromJSON(paste0(backend_url, "/analytics/requests-over-time")) }, error = function(e) NULL)
-    # Resources
-    res_resources <- tryCatch({ fromJSON(paste0(backend_url, "/analytics/top-resources")) }, error = function(e) NULL)
+  update_analytics <- function(type = "all") {
+    types <- if(type == "all") c("upload", "streaming") else type
     
-    analytics_data$ips <- res_ips
-    analytics_data$time <- res_time
-    analytics_data$resources <- res_resources
+    for(t in types) {
+      ips <- tryCatch({ fromJSON(paste0(backend_url, "/analytics/top-ips?type=", t)) }, error = function(e) NULL)
+      time <- tryCatch({ fromJSON(paste0(backend_url, "/analytics/requests-over-time?type=", t)) }, error = function(e) NULL)
+      resources <- tryCatch({ fromJSON(paste0(backend_url, "/analytics/top-resources?type=", t)) }, error = function(e) NULL)
+      
+      analytics_data[[t]] <- list(ips = ips, time = time, resources = resources)
+    }
   }
 
   observeEvent(input$refresh_analytics, { update_analytics() })
 
-  output$plot_ips <- renderPlot({
-    req(analytics_data$ips)
-    if(nrow(analytics_data$ips) == 0) return(NULL)
-    ggplot(analytics_data$ips, aes(x = reorder(ip, count), y = count)) +
-      geom_col(fill = "#007bff") +
-      coord_flip() +
-      labs(x = "IP", y = "Peticiones") +
-      theme_minimal()
+  # Render Plots Upload
+  output$plot_ips_upload <- renderPlot({
+    req(analytics_data$upload)
+    df <- analytics_data$upload$ips
+    if(is.null(df) || nrow(df) == 0) return(NULL)
+    ggplot(df, aes(x = reorder(ip, count), y = count)) + geom_col(fill = "#007bff") + coord_flip() + labs(x = "IP", y = "Count") + theme_minimal()
   })
-
-  output$plot_resources <- renderPlot({
-    req(analytics_data$resources)
-    if(nrow(analytics_data$resources) == 0) return(NULL)
-    ggplot(analytics_data$resources, aes(x = reorder(recurso, count), y = count)) +
-      geom_col(fill = "#28a745") +
-      coord_flip() +
-      labs(x = "Recurso", y = "Peticiones") +
-      theme_minimal()
+  output$plot_resources_upload <- renderPlot({
+    req(analytics_data$upload)
+    df <- analytics_data$upload$resources
+    if(is.null(df) || nrow(df) == 0) return(NULL)
+    ggplot(df, aes(x = reorder(recurso, count), y = count)) + geom_col(fill = "#28a745") + coord_flip() + labs(x = "Recurso", y = "Count") + theme_minimal()
   })
-
-  output$plot_time <- renderPlot({
-    req(analytics_data$time)
-    if(nrow(analytics_data$time) == 0) return(NULL)
-    df <- analytics_data$time
+  output$plot_time_upload <- renderPlot({
+    req(analytics_data$upload)
+    df <- analytics_data$upload$time
+    if(is.null(df) || nrow(df) == 0) return(NULL)
     df$timestamp <- as.POSIXct(df$timestamp)
-    ggplot(df, aes(x = timestamp, y = count)) +
-      geom_line(color = "#dc3545", size = 1) +
-      geom_point() +
-      labs(x = "Hora", y = "Peticiones") +
-      theme_minimal()
+    ggplot(df, aes(x = timestamp, y = count)) + geom_line(color = "#007bff") + geom_point() + theme_minimal()
   })
 
-  update_analytics()
+  # Render Plots Streaming
+  output$plot_ips_streaming <- renderPlot({
+    req(analytics_data$streaming)
+    df <- analytics_data$streaming$ips
+    if(is.null(df) || nrow(df) == 0) return(NULL)
+    ggplot(df, aes(x = reorder(ip, count), y = count)) + geom_col(fill = "#ffc107") + coord_flip() + labs(x = "IP", y = "Count") + theme_minimal()
+  })
+  output$plot_resources_streaming <- renderPlot({
+    req(analytics_data$streaming)
+    df <- analytics_data$streaming$resources
+    if(is.null(df) || nrow(df) == 0) return(NULL)
+    ggplot(df, aes(x = reorder(recurso, count), y = count)) + geom_col(fill = "#17a2b8") + coord_flip() + labs(x = "Recurso", y = "Count") + theme_minimal()
+  })
+  output$plot_time_streaming <- renderPlot({
+    req(analytics_data$streaming)
+    df <- analytics_data$streaming$time
+    if(is.null(df) || nrow(df) == 0) return(NULL)
+    df$timestamp <- as.POSIXct(df$timestamp)
+    ggplot(df, aes(x = timestamp, y = count)) + geom_line(color = "#dc3545") + geom_point() + theme_minimal()
+  })
+
+  isolate({ update_analytics() })
 }
 
 shinyApp(ui = ui, server = server)

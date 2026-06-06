@@ -38,9 +38,9 @@ process_logs <- function() {
   write_processed_outputs(logs_limpios)
 }
 
-write_processed_outputs <- function(logs_limpios) {
-  csv_path <- file.path(get_output_dir(), "logs_procesados.csv")
-  json_path <- file.path(get_output_dir(), "logs_procesados.json")
+write_processed_outputs <- function(logs_limpios, filename = "logs_procesados") {
+  csv_path <- file.path(get_output_dir(), paste0(filename, ".csv"))
+  json_path <- file.path(get_output_dir(), paste0(filename, ".json"))
 
   write_csv(logs_limpios, csv_path)
   write_json(logs_limpios, json_path, pretty = TRUE, auto_unbox = TRUE)
