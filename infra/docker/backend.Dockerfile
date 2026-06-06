@@ -1,6 +1,13 @@
 FROM rocker/tidyverse:4.4.2
 
-RUN R -e "install.packages(c('plumber', 'jsonlite'), repos = 'https://cloud.r-project.org')"
+# Install system dependencies for R packages
+RUN apt-get update && apt-get install -y \
+    libsodium-dev \
+    libcurl4-openssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install R packages
+RUN R -e "install.packages(c('plumber', 'jsonlite', 'dplyr', 'lubridate', 'stringr', 'purrr', 'readr', 'tibble'), repos = 'https://cloud.r-project.org')"
 
 WORKDIR /app
 
