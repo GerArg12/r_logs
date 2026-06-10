@@ -9,6 +9,7 @@ Encoding: UTF-8
 Imports:
     dplyr,
     jsonlite,
+    lubridate,
     plumber,
     purrr,
     readr,

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain } = require('electron');
 const { spawn } = require('node:child_process');
 const path = require('node:path');
 const http = require('node:http');
@@ -6,6 +6,23 @@ const http = require('node:http');
 const shinyPort = process.env.SHINY_PORT || '3838';
 const shinyUrl = `http://127.0.0.1:${shinyPort}`;
 let shinyProcess;
+
+ipcMain.handle('select-log-file', async () => {
+  const result = await dialog.showOpenDialog({
+    title: 'Seleccionar archivo .log',
+    properties: ['openFile'],
+    filters: [
+      { name: 'Archivos de log', extensions: ['log'] },
+      { name: 'Todos los archivos', extensions: ['*'] }
+    ]
+  });
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return null;
+  }
+
+  return result.filePaths[0];
+});
 
 function waitForShiny(retries = 60) {
   return new Promise((resolve, reject) => {

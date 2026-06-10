@@ -7,5 +7,6 @@ Description: Shiny interface for the R logs desktop application.
 License: MIT
 Encoding: UTF-8
 Imports:
+    ggplot2,
     jsonlite,
     shiny
